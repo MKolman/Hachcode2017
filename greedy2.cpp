@@ -70,7 +70,8 @@ vector<vector<int>> calc_savings() {
     return savings;
 }
 
-void update_savings_for_video(vector<vector<int>>& savings, int vid) {
+void update_savings_for_video(vector<vector<int>>& savings, int vid, vector<int>& best_cache_for_video) {
+    if (savings[best_cache_for_video[vid]][vid] != -2) {
     for (int cid = 0; cid < C; ++cid) {
         if (savings[cid][vid] > 0) {
             savings[cid][vid] = 0;
@@ -94,20 +95,29 @@ void update_savings_for_video(vector<vector<int>>& savings, int vid) {
                 savings[cid][vid] += max(0, current_latency - e.cache_lat[cid]) * r.num_req;
             }
         }
+    }}
+
+    int save = -10;
+    for (int c = 0; c < C; ++c) {
+        if (savings[c][vid] > save) {
+            save = savings[c][vid];
+            best_cache_for_video[vid] = c;
+        }
     }
 }
 
-pair<int, int> get_best_video_to_cache(const vector<vector<int>>& savings) {
+pair<int, int> get_best_video_to_cache(const vector<vector<int>>& savings, const vector<int>& best_cache_for_video) {
     int best_cache, best_video, best_save = -10;
-    for (int c = 0; c < C; ++c) {
+//    for (int c = 0; c < C; ++c) {
         for (int v = 0; v < V; ++v) {
-            if (savings[c][v] >= best_save) {
-                best_save = savings[c][v];
-                best_cache = c;
+            int bc = best_cache_for_video[v];
+            if (savings[bc][v] >= best_save) {
+                best_save = savings[bc][v];
+                best_cache = bc;
                 best_video = v;
             }
         }
-    }
+//    }
     return {best_cache, best_video};
 }
 
@@ -142,26 +152,38 @@ int main() {
     vector<int> cache_space_left(C, X);
     int done = 0;
     int all = C*V;
+    vector<int> best_cache_for_video(V, 0);
+    for (int v = 0; v < V; ++v) {
+        int save = savings[best_cache_for_video[v]][v];
+        for (int c = 0; c < C; ++c) {
+            if (savings[c][v] > save) {
+                save = savings[c][v];
+                best_cache_for_video[v] = c;
+            }
+        }
+    }
+
     while (true) {
-        tie(best_cache, best_video) = get_best_video_to_cache(savings);
+        tie(best_cache, best_video) = get_best_video_to_cache(savings, best_cache_for_video);
 //        prn(best_cache);
 //        prn(best_video);
 //        prn(savings[best_cache][best_video]);
         if (savings[best_cache][best_video] < 0) break;
-        if (cache_space_left[best_cache] < videos[best_video].size) {
+        if (cache_space_left[best_cache] < videos[best_video].size) {  // no space
             savings[best_cache][best_video] = -2;  // cant
-            continue;
+        } else {
+            cache_space_left[best_cache] -= videos[best_video].size;
+            videos_per_cache[best_cache].push_back(best_video);
+            savings[best_cache][best_video] = -1;
         }
-        cache_space_left[best_cache] -= videos[best_video].size;
-        videos_per_cache[best_cache].push_back(best_video);
-        savings[best_cache][best_video] = -1;
 
         done += 1;
-        if (done % 100 == 0) {
-            cerr << done << "/" << all << " = " << (double) done / all << "% \n";
+        if (done % 10000 == 0) {
+            cerr << done << "/" << all << " = " << (double) done / all *100 << "% \n";
         }
-        
-        update_savings_for_video(savings, best_video);
+
+        update_savings_for_video(savings, best_video, best_cache_for_video);
+//        prn(best_cache_for_video);
     }
 
     cout << C << endl;
