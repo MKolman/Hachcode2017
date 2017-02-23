@@ -83,8 +83,8 @@ int main() {
                 for (int rid : vid.request_ids) {  // requesti, ki zelijo ta video
                     Request& r = requests[rid];
                     if (endpoints[r.endpoint_id].cache_lat[c] >= 0)  // smo povezani z cachem c
-                    savings[c][v] += r.num_req * (endpoints[r.endpoint_id].datacenter_lat -
-                            endpoints[r.endpoint_id].cache_lat[c]);
+                        savings[c][v] += r.num_req * (endpoints[r.endpoint_id].datacenter_lat -
+                                                      endpoints[r.endpoint_id].cache_lat[c]);
                 }
             }
         }
