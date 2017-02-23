@@ -2,6 +2,7 @@
 #include <vector>
 #include "includes.hpp"
 #include "common.hpp"
+#include <functional>
 
 using namespace mm;
 using namespace std;
@@ -87,6 +88,37 @@ int main() {
                 }
             }
         }
+    }
+
+    vector<vector<int>> videos_per_cache(C, vector<int>());
+    for (int c = 0; c < C; ++c) {
+        vector<tuple<int, int, int>> save_per_video;
+        for (int v = 0; v < V; ++v) {
+            save_per_video.push_back({savings[c][v], videos[v].size, v});
+        }
+        sort(save_per_video.begin(), save_per_video.end(), greater<tuple<int, int, int>>());
+        int space = X;
+        int v = 0;
+        int vid, save, size;
+        while (space > 0 && v < V) {
+            tie(save, size, vid) = save_per_video[v];
+            if (size <= space) {
+                videos_per_cache[c].push_back(vid);
+                space -= size;
+            }
+            v++;
+        }
+    }
+
+//    prn(videos_per_cache);
+
+    cout << C << endl;
+    for (int c = 0; c < C; ++c) {
+        cout << c;
+        for (int v : videos_per_cache[c]) {
+            cout << " " << v;
+        }
+        cout << endl;
     }
 
     return 0;
