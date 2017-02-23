@@ -40,6 +40,7 @@ struct Video {
 vector<Video> videos;
 vector<Request> requests;
 vector<Endpoint> endpoints;
+vector<vector<int>> videos_per_cache;
 
 ostream& operator<<(ostream& os, Request r) {
     cout << "Request(v=" << r.video_id << ", e=" << r.endpoint_id << ", n=" << r.num_req << ")";
@@ -69,6 +70,47 @@ vector<vector<int>> calc_savings() {
     return savings;
 }
 
+void update_savings_for_video(vector<vector<int>>& savings, int vid) {
+    for (int cid = 0; cid < C; ++cid) {
+        if (savings[cid][vid] > 0) {
+            savings[cid][vid] = 0;
+        }
+    }
+    Video& v = videos[vid];
+    int current_latency;
+    for (int rid : v.request_ids) {
+        auto& r = requests[rid];
+        auto& e = endpoints[r.endpoint_id];
+        current_latency = e.datacenter_lat;
+        for (int cid : e.connected_caches) {
+            // video is cached in cid (to be optimised)
+            if (find(videos_per_cache[cid].begin(), videos_per_cache[cid].end(), vid) != videos_per_cache[cid].end()) {
+                current_latency = min(current_latency, e.cache_lat[cid]);
+            }
+        }
+
+        for (int cid = 0; cid < C; ++cid) {
+            if (savings[cid][vid] > 0) {
+                savings[cid][vid] += max(0, current_latency - e.cache_lat[cid]) * r.num_req;
+            }
+        }
+    }
+}
+
+pair<int, int> get_best_video_to_cache(const vector<vector<int>>& savings) {
+    int best_cache, best_video, best_save = -10;
+    for (int c = 0; c < C; ++c) {
+        for (int v = 0; v < V; ++v) {
+            if (savings[c][v] >= best_save) {
+                best_save = savings[c][v];
+                best_cache = c;
+                best_video = v;
+            }
+        }
+    }
+    return {best_cache, best_video};
+}
+
 int main() {
     cin >> V >> E >> R >> C >> X;
     videos.resize(V);
@@ -93,26 +135,33 @@ int main() {
         videos[vid].request_ids.push_back(i);
     }
 
+//    prn("here");
     vector<vector<int>> savings = calc_savings();
+    int best_cache, best_video;
+    videos_per_cache.resize(C);
+    vector<int> cache_space_left(C, X);
+    int done = 0;
+    int all = C*V;
+    while (true) {
+        tie(best_cache, best_video) = get_best_video_to_cache(savings);
+//        prn(best_cache);
+//        prn(best_video);
+//        prn(savings[best_cache][best_video]);
+        if (savings[best_cache][best_video] < 0) break;
+        if (cache_space_left[best_cache] < videos[best_video].size) {
+            savings[best_cache][best_video] = -2;  // cant
+            continue;
+        }
+        cache_space_left[best_cache] -= videos[best_video].size;
+        videos_per_cache[best_cache].push_back(best_video);
+        savings[best_cache][best_video] = -1;
 
-    vector<vector<int>> videos_per_cache(C, vector<int>());
-    for (int c = 0; c < C; ++c) {
-        vector<tuple<int, int, int>> save_per_video;
-        for (int v = 0; v < V; ++v) {
-            save_per_video.push_back({savings[c][v], videos[v].size, v});
+        done += 1;
+        if (done % 100 == 0) {
+            cerr << done << "/" << all << " = " << (double) done / all << "% \n";
         }
-        sort(save_per_video.begin(), save_per_video.end(), greater<tuple<int, int, int>>());
-        int space = X;
-        int v = 0;
-        int vid, save, size;
-        while (space > 0 && v < V) {
-            tie(save, size, vid) = save_per_video[v];
-            if (size <= space) {
-                videos_per_cache[c].push_back(vid);
-                space -= size;
-            }
-            v++;
-        }
+        
+        update_savings_for_video(savings, best_video);
     }
 
     cout << C << endl;
