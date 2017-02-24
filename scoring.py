@@ -1,8 +1,14 @@
+"""
+    This files scores your answer if it is in the correct output form.
+    usage:
+        python3 scoring.py example.in example.out
+"""
+
 from sys import argv, exit
 
 if len(argv) < 3:
-    print("Not enough arguments")
-    print("Gimme: scoring.py input.in result.out")
+    print("[Error] Not enough arguments")
+    print("[Error] Gimme: scoring.py input.in result.out")
     exit(0)
 
 inf = open(argv[1])
@@ -37,18 +43,18 @@ for i in range(r):
 cached = [None for _ in range(c)]
 num_cache = int(outf.readline())
 if num_cache > c or num_cache < 0:
-    print("You are trying to use more caches than are available! No can do")
+    print("[Error] You are trying to use more caches than are available! No can do")
     exit(1)
 for i in range(num_cache):
     line = list(map(int, outf.readline().split()))
     cid = line[0]
     if cached[cid] is not None:
-        print("You are trying to use the cache server #{} multiple times".format(cid))
+        print("[Error] You are trying to use the cache server #{} multiple times".format(cid))
         exit(1)
     cached[cid] = set(line[1:])
     csize = sum(v_len[vid] for vid in line[1:])
     if csize > x:
-        print("You are trying to store {}MB (X={}MB) in cahce #{}".format(csize, x, cid))
+        print("[Error] You are trying to store {}MB (X={}MB) in cahce #{}".format(csize, x, cid))
         exit(1)
 # Swap None for empty set
 cached = [cac or set() for cac in cached]
